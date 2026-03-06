@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Windsurf User Feedback Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card-hover: #1f2330;
+    --border: #2a2d3a;
+    --text: #e4e6ef;
+    --text-muted: #8b8fa3;
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --cyan: #06b6d4;
+    --orange: #f97316;
+    --pink: #ec4899;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .header {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent-light), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .header .meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .header .meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 28px 40px 60px;
+  }
+
+  /* KPI Cards */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .kpi-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+
+  .kpi-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .nps-positive { color: var(--green); }
+  .nps-neutral { color: var(--yellow); }
+  .nps-negative { color: var(--red); }
+
+  /* Chart Grid */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .chart-grid.triple {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .chart-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .chart-card.full {
+    grid-column: 1 / -1;
+  }
+
+  .chart-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+
+  .chart-card .chart-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .chart-wrap canvas {
+    width: 100% !important;
+  }
+
+  /* NPS Breakdown Bar */
+  .nps-bar {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 28px;
+    margin: 12px 0;
+  }
+
+  .nps-bar .segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    transition: flex 0.3s;
+  }
+
+  .nps-bar .promoter { background: var(--green); }
+  .nps-bar .passive { background: var(--yellow); color: #1a1d27; }
+  .nps-bar .detractor { background: var(--red); }
+
+  .nps-legend {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  .nps-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nps-legend .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Frustration Theme Bars */
+  .theme-list {
+    list-style: none;
+  }
+
+  .theme-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .theme-item:last-child { border-bottom: none; }
+
+  .theme-label {
+    width: 180px;
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .theme-bar-wrap {
+    flex: 1;
+    height: 24px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .theme-bar {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    transition: width 0.8s ease;
+  }
+
+  .theme-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Rating Stars Row */
+  .rating-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .rating-row:last-child { border-bottom: none; }
+
+  .rating-name {
+    width: 200px;
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .rating-stars {
+    display: flex;
+    gap: 3px;
+  }
+
+  .rating-star {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .rating-avg {
+    font-size: 22px;
+    font-weight: 700;
+    min-width: 50px;
+    text-align: center;
+    color: var(--accent-light);
+  }
+
+  .rating-bar-wrap {
+    flex: 1;
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .rating-bar-segment {
+    height: 22px;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    position: relative;
+  }
+
+  /* Section Title */
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 36px 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .chart-grid.triple { grid-template-columns: 1fr 1fr; }
+    .container { padding: 20px; }
+    .header { padding: 20px; }
+  }
+
+  @media (max-width: 640px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid.triple { grid-template-columns: 1fr; }
+    .theme-label { width: 120px; }
+    .rating-name { width: 140px; }
+  }
+
+  /* Tooltip customization */
+  .insight-box {
+    background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(6,182,212,0.08));
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-muted);
+  }
+
+  .insight-box strong {
+    color: var(--accent-light);
+  }
+
+  /* Quote cards */
+  .quote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+  }
+
+  .quote-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .quote-card:hover {
+    border-color: var(--accent);
+  }
+
+  .quote-card::before {
+    content: '\201C';
+    font-size: 32px;
+    color: var(--accent);
+    opacity: 0.4;
+    position: absolute;
+    top: 6px;
+    left: 12px;
+    font-family: Georgia, serif;
+  }
+
+  .quote-card p {
+    margin-left: 20px;
+  }
+
+  /* Sentiment pills */
+  .sentiment-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .sentiment-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .sentiment-pill .s-count {
+    font-size: 24px;
+    font-weight: 800;
+    margin-right: 4px;
+  }
+
+  .sentiment-positive { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .sentiment-neutral { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(234,179,8,0.2); }
+  .sentiment-negative { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  /* Competitor table */
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .comp-table th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .comp-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .comp-table tr:last-child td { border-bottom: none; }
+
+  .comp-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    min-width: 36px;
+    text-align: center;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3d4a; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Windsurf User Feedback Survey</h1>
+  <div class="meta">
+    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 527 Responses</span>
+    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> March 4–6, 2026</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Responses</div>
+      <div class="kpi-value">527</div>
+      <div class="kpi-sub">Unique respondents</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">NPS Score</div>
+      <div class="kpi-value nps-positive">+42</div>
+      <div class="kpi-sub">51.8% promoters · 9.9% detractors</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Recommendation</div>
+      <div class="kpi-value" style="color: var(--accent-light);">8.4<span style="font-size:18px; font-weight:400; color:var(--text-muted);">/10</span></div>
+      <div class="kpi-sub">Likelihood to recommend</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Daily Users</div>
+      <div class="kpi-value" style="color: var(--cyan);">67%</div>
+      <div class="kpi-sub">353 of 527 use it every day</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Devin Awareness</div>
+      <div class="kpi-value" style="color: var(--orange);">57%</div>
+      <div class="kpi-sub">300 have heard of Devin</div>
+    </div>
+  </div>
+
+  <!-- NPS Section -->
+  <div class="section-title">Net Promoter Score <span class="badge">Core Metric</span></div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>NPS Score Distribution</h3>
+      <div class="chart-subtitle">How likely are you to recommend Windsurf? (0–10)</div>
+      <div class="nps-bar">
+        <div class="segment detractor" style="flex: 52;">52</div>
+        <div class="segment passive" style="flex: 202;">202</div>
+        <div class="segment promoter" style="flex: 273;">273</div>
+      </div>
+      <div class="nps-legend">
+        <span><span class="dot" style="background:var(--red);"></span> Detractors (0–6): 52</span>
+        <span><span class="dot" style="background:var(--yellow);"></span> Passives (7–8): 202</span>
+        <span><span class="dot" style="background:var(--green);"></span> Promoters (9–10): 273</span>
+      </div>
+      <div class="chart-wrap" style="height:220px; margin-top: 16px;">
+        <canvas id="npsDistChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>NPS by Usage Frequency</h3>
+      <div class="chart-subtitle">Power users are significantly more likely to recommend</div>
+      <div class="chart-wrap" style="height:300px;">
+        <canvas id="npsByUsageChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ratings Section -->
+  <div class="section-title">Product Ratings <span class="badge">1–5 Scale</span></div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Rating Breakdown by Category</h3>
+      <div class="chart-subtitle">Distribution of 1–5 star ratings across categories</div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="ratingsChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Radar Overview</h3>
+      <div class="chart-subtitle">Average scores across all dimensions</div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="radarChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage & Acquisition -->
+  <div class="section-title">User Demographics</div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Usage Frequency</h3>
+      <div class="chart-subtitle">How often respondents use Windsurf</div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="usageChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Acquisition Channels</h3>
+      <div class="chart-subtitle">How users first heard about Windsurf (top channels)</div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="channelsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Devin Section -->
+  <div class="section-title">Devin Awareness & Perception</div>
+
+  <div class="chart-grid triple">
+    <div class="chart-card">
+      <h3>Have you heard of Devin?</h3>
+      <div class="chart-subtitle">Awareness levels among Windsurf users</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="devinAwarenessChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Devin Favorability</h3>
+      <div class="chart-subtitle">0 = Very unfavorable, 7 = Very favorable (n=300)</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="devinFavChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Same Company Awareness</h3>
+      <div class="chart-subtitle">Did you know Windsurf & Devin are from the same company?</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="sameCompanyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remote Agent -->
+  <div class="chart-grid triple" style="margin-top: 0;">
+    <div class="chart-card">
+      <h3>Remote Coding Agent Usage</h3>
+      <div class="chart-subtitle">Have you ever used a remote coding agent before?</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="remoteAgentChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frustrations Section -->
+  <div class="section-title">User Frustrations <span class="badge">378 responses</span></div>
+
+  <div class="insight-box">
+    <strong>Key insight:</strong> 72% of respondents reported at least one frustration. The top two themes — <strong>Model Quality</strong> and <strong>Credits/Pricing</strong> — each appear in ~20% of all responses. Stability concerns and UI/UX issues round out the top four.
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <h3>Top Frustration Themes</h3>
+      <div class="chart-subtitle">Keyword-based categorization of open-ended frustration responses (respondents can appear in multiple themes)</div>
+      <ul class="theme-list" id="themeList"></ul>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <h3>Frustration Themes Breakdown</h3>
+      <div class="chart-subtitle">Visual comparison across all identified themes</div>
+      <div class="chart-wrap" style="height:320px;">
+        <canvas id="frustrationsBarChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== -->
+  <!-- FREE RESPONSE ANALYSIS -->
+  <!-- ==================== -->
+  <div class="section-title">"Anything Else You Want Us to Know?" <span class="badge">241 responses</span></div>
+
+  <div class="insight-box">
+    <strong>Response rate:</strong> 46% of respondents (241 of 527) left an open-ended comment. Sentiment is overwhelmingly positive — <strong>38% positive</strong>, <strong>59% neutral/mixed</strong>, and only <strong>3% negative</strong>. The most common themes are expressions of love for the product, requests for features, and concerns about pricing/credits.
+  </div>
+
+  <!-- Sentiment -->
+  <div class="sentiment-row">
+    <div class="sentiment-pill sentiment-positive"><span class="s-count">92</span> Positive (38%)</div>
+    <div class="sentiment-pill sentiment-neutral"><span class="s-count">142</span> Neutral / Mixed (59%)</div>
+    <div class="sentiment-pill sentiment-negative"><span class="s-count">7</span> Negative (3%)</div>
+  </div>
+
+  <!-- Free Response Themes -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Open Response Themes</h3>
+      <div class="chart-subtitle">What users chose to share (% of 241 responses)</div>
+      <div class="chart-wrap" style="height:380px;">
+        <canvas id="freeResponseThemesChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Competitor Mentions</h3>
+      <div class="chart-subtitle">How often competitors appear across frustrations &amp; open responses</div>
+      <table class="comp-table">
+        <thead>
+          <tr><th>Competitor</th><th>In Frustrations</th><th>In "Anything Else"</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;">Cursor</td>
+            <td><span class="comp-badge" style="background:rgba(239,68,68,0.15); color:#ef4444;">15</span></td>
+            <td><span class="comp-badge" style="background:rgba(239,68,68,0.15); color:#ef4444;">20</span></td>
+            <td><span class="comp-badge" style="background:rgba(239,68,68,0.25); color:#ef4444;">35</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Claude Code / Codex</td>
+            <td><span class="comp-badge" style="background:rgba(168,85,247,0.15); color:#a855f7;">29</span></td>
+            <td><span class="comp-badge" style="background:rgba(168,85,247,0.15); color:#a855f7;">21</span></td>
+            <td><span class="comp-badge" style="background:rgba(168,85,247,0.25); color:#a855f7;">50</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Copilot</td>
+            <td><span class="comp-badge" style="background:rgba(59,130,246,0.15); color:#3b82f6;">2</span></td>
+            <td><span class="comp-badge" style="background:rgba(59,130,246,0.15); color:#3b82f6;">1</span></td>
+            <td><span class="comp-badge" style="background:rgba(59,130,246,0.25); color:#3b82f6;">3</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">ChatGPT</td>
+            <td><span class="comp-badge" style="background:rgba(34,197,94,0.15); color:#22c55e;">5</span></td>
+            <td><span class="comp-badge" style="background:rgba(34,197,94,0.15); color:#22c55e;">0</span></td>
+            <td><span class="comp-badge" style="background:rgba(34,197,94,0.25); color:#22c55e;">5</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="insight-box" style="margin-top:16px;">
+        <strong>Takeaway:</strong> Claude Code/Codex is the most referenced competitor (50 total mentions), frequently cited as a more capable agentic alternative. Cursor is mentioned 35 times, often in UI/UX comparisons.
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Requests -->
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <h3>Top Product Requests from Open Responses</h3>
+      <div class="chart-subtitle">Specific feature requests and suggestions extracted from "anything else" comments</div>
+      <ul class="theme-list" id="productRequestsList"></ul>
+    </div>
+  </div>
+
+  <!-- Devin Perception Deep Dive -->
+  <div class="section-title">Devin Perception Deep Dive</div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>How Users Describe Devin</h3>
+      <div class="chart-subtitle">Categorized responses to "What's your understanding of what Devin does?" (n=217)</div>
+      <div class="chart-wrap" style="height:280px;">
+        <canvas id="devinPerceptionChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Devin-Related Requests</h3>
+      <div class="chart-subtitle">What users say about the Devin + Windsurf relationship</div>
+      <div class="insight-box" style="margin-bottom: 12px;">
+        <strong>39 respondents</strong> (16%) mentioned Devin in their open comments. Key themes:
+      </div>
+      <ul class="theme-list" id="devinRequestsList"></ul>
+    </div>
+  </div>
+
+  <!-- Notable Quotes -->
+  <div class="section-title">Notable Quotes</div>
+
+  <div class="insight-box">
+    Hand-picked responses that capture the breadth of user sentiment — from power users to first-time coders.
+  </div>
+
+  <div class="quote-grid">
+    <div class="quote-card"><p>Your product is changing my reality and I'm beyond grateful and excited.</p></div>
+    <div class="quote-card"><p>I'm not a professional coder, although I do have some knowledge, but I've made two complete SaaS applications using Windsurf and a variety of agents.</p></div>
+    <div class="quote-card"><p>Codex and Claude for serious, agentic stuff; Windsurf and Cursor for support tasks. This is my stack. It will only change for Windsurf when it is able to really tackle complex problems without suffering connection issues every 5 minutes.</p></div>
+    <div class="quote-card"><p>If the idea is to merge Devin and Windsurf into a single product I'm all for it.</p></div>
+    <div class="quote-card"><p>I recently cancelled my Windsurf subscription because Claude Code outperforms Windsurf. I still love Windsurf as an IDE. Windsurf is what VS Code should be.</p></div>
+    <div class="quote-card"><p>The AI revolution will let folks who never coded before do amazing things. I'm a user and pro subscriber to windsurf so I can unlock my mind's ideas despite not knowing how to write a line of python coding.</p></div>
+    <div class="quote-card"><p>I'm enjoying Windsurf and referred over 20 people so far.</p></div>
+    <div class="quote-card"><p>It would be cool if some Devin usage was included in my Windsurf plan. I would definitely check it out.</p></div>
+    <div class="quote-card"><p>My Windsurf journey, and for that matter, my whole coding/dev curiosity began because of what I saw Devin do. Windsurf has become like an appendage to me.</p></div>
+    <div class="quote-card"><p>Please don't make the same mistakes of making it too confusing for small users like me to keep using Windsurf.</p></div>
+    <div class="quote-card"><p>Tools like Windsurf, Cursor, AMP etc are great because model provider choice is still very important (rather than being tied to individual AI lab ecosystems). Keep up the good work.</p></div>
+    <div class="quote-card"><p>Great job! Since you can't beat the model providers, work on improving the product or venture into tight vertical integration, from code hosting to deployment and maintenance.</p></div>
+  </div>
+
+</div>
+
+<script>
+// ===== Chart.js Defaults =====
+Chart.defaults.color = '#8b8fa3';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
+Chart.defaults.plugins.legend.labels.padding = 16;
+
+const colors = {
+  indigo: '#6366f1',
+  blue: '#3b82f6',
+  cyan: '#06b6d4',
+  green: '#22c55e',
+  yellow: '#eab308',
+  orange: '#f97316',
+  red: '#ef4444',
+  pink: '#ec4899',
+  purple: '#a855f7',
+  teal: '#14b8a6',
+};
+
+// ===== NPS Distribution =====
+new Chart(document.getElementById('npsDistChart'), {
+  type: 'bar',
+  data: {
+    labels: ['0','1','2','3','4','5','6','7','8','9','10'],
+    datasets: [{
+      data: [0, 0, 4, 7, 6, 10, 25, 82, 120, 83, 190],
+      backgroundColor: [
+        '#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444',
+        '#eab308','#eab308',
+        '#22c55e','#22c55e'
+      ],
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { font: { size: 11 } }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ===== NPS by Usage =====
+new Chart(document.getElementById('npsByUsageChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Every day', 'Few times/week', 'Few times/month', 'Rarely'],
+    datasets: [
+      {
+        label: 'NPS Score',
+        data: [52, 27, 3, -67],
+        backgroundColor: ['#22c55e', '#22c55e', '#eab308', '#ef4444'],
+        borderRadius: 6,
+        borderSkipped: false,
+        barThickness: 40,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => `NPS: ${ctx.raw > 0 ? '+' : ''}${ctx.raw}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        min: -80,
+        max: 60,
+        ticks: {
+          callback: v => (v > 0 ? '+' : '') + v,
+          font: { size: 11 }
+        }
+      },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 12, weight: 500 } }
+      }
+    }
+  }
+});
+
+// ===== Rating Breakdown =====
+new Chart(document.getElementById('ratingsChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Speed', 'Codebase Understanding', 'Stability', 'Code Quality'],
+    datasets: [
+      { label: '1 (Poor)', data: [2, 1, 8, 4], backgroundColor: '#ef4444' },
+      { label: '2', data: [16, 18, 37, 27], backgroundColor: '#f97316' },
+      { label: '3 (OK)', data: [105, 89, 104, 123], backgroundColor: '#eab308' },
+      { label: '4', data: [206, 243, 220, 261], backgroundColor: '#3b82f6' },
+      { label: '5 (Excellent)', data: [194, 171, 153, 105], backgroundColor: '#22c55e' },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 11 } }
+      },
+    },
+    scales: {
+      x: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { font: { size: 11 } }
+      },
+      y: {
+        stacked: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ===== Radar Chart =====
+new Chart(document.getElementById('radarChart'), {
+  type: 'radar',
+  data: {
+    labels: ['Speed', 'Codebase\nUnderstanding', 'Stability', 'Code Quality'],
+    datasets: [{
+      label: 'Average Rating',
+      data: [4.10, 4.08, 3.91, 3.84],
+      backgroundColor: 'rgba(99,102,241,0.15)',
+      borderColor: '#6366f1',
+      borderWidth: 2,
+      pointBackgroundColor: '#6366f1',
+      pointBorderColor: '#fff',
+      pointRadius: 5,
+      pointHoverRadius: 7,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      r: {
+        min: 0,
+        max: 5,
+        ticks: {
+          stepSize: 1,
+          backdropColor: 'transparent',
+          font: { size: 10 },
+          color: '#8b8fa3'
+        },
+        pointLabels: {
+          font: { size: 12, weight: 500 },
+          color: '#e4e6ef'
+        },
+        grid: { color: 'rgba(255,255,255,0.08)' },
+        angleLines: { color: 'rgba(255,255,255,0.08)' }
+      }
+    }
+  }
+});
+
+// ===== Usage Frequency =====
+new Chart(document.getElementById('usageChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Every day', 'Few times a week', 'Few times a month', 'Rarely / trying it out'],
+    datasets: [{
+      data: [353, 138, 33, 3],
+      backgroundColor: [colors.indigo, colors.blue, colors.cyan, colors.purple],
+      borderWidth: 0,
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '55%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 12 }, padding: 12 }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const pct = ((ctx.raw / 527) * 100).toFixed(1);
+            return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+
+// ===== Acquisition Channels =====
+new Chart(document.getElementById('channelsChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Word of Mouth', 'YouTube', 'Twitter / X', 'Google Search', 'Blog / Article', 'Reddit', 'Conference', 'Ad', 'LinkedIn', 'Other'],
+    datasets: [{
+      data: [152, 87, 65, 65, 47, 26, 9, 7, 5, 64],
+      backgroundColor: [
+        colors.indigo, colors.red, colors.blue, colors.green,
+        colors.orange, colors.pink, colors.teal, colors.yellow,
+        colors.cyan, colors.purple
+      ],
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { font: { size: 11 } }
+      },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 12, weight: 500 } }
+      }
+    }
+  }
+});
+
+// ===== Devin Awareness =====
+new Chart(document.getElementById('devinAwarenessChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Know & haven\'t tried', 'Never heard of it', 'Have used it', 'Heard name only'],
+    datasets: [{
+      data: [178, 227, 43, 79],
+      backgroundColor: [colors.blue, colors.purple, colors.green, colors.orange],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '50%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 11 }, padding: 10 }
+      }
+    }
+  }
+});
+
+// ===== Devin Favorability =====
+new Chart(document.getElementById('devinFavChart'), {
+  type: 'bar',
+  data: {
+    labels: ['0', '1', '2', '3', '4', '5', '6', '7'],
+    datasets: [{
+      data: [11, 6, 18, 81, 123, 34, 15, 12],
+      backgroundColor: [
+        '#ef4444', '#f97316', '#f97316', '#eab308',
+        '#22c55e', '#22c55e', '#3b82f6', '#6366f1'
+      ],
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: items => {
+            const labels = ['Very Unfavorable', 'Unfavorable', 'Somewhat Unfavorable', 'Neutral', 'Somewhat Favorable', 'Favorable', 'Very Favorable', 'Extremely Favorable'];
+            return labels[items[0].dataIndex];
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+      },
+      x: {
+        grid: { display: false },
+        title: { display: true, text: 'Favorability (0=Low, 7=High)', font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ===== Same Company =====
+new Chart(document.getElementById('sameCompanyChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['No', 'Yes'],
+    datasets: [{
+      data: [309, 218],
+      backgroundColor: [colors.orange, colors.indigo],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '50%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 12 }, padding: 12 }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const pct = ((ctx.raw / 527) * 100).toFixed(1);
+            return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+
+// ===== Remote Agent =====
+new Chart(document.getElementById('remoteAgentChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Yes', 'No', 'Not sure'],
+    datasets: [{
+      data: [270, 211, 42],
+      backgroundColor: [colors.green, colors.red, colors.yellow],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '50%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { font: { size: 12 }, padding: 12 }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const total = 523;
+            const pct = ((ctx.raw / total) * 100).toFixed(1);
+            return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+
+// ===== Frustration Themes =====
+const themes = [
+  { label: 'Model Quality / Accuracy', count: 110, color: colors.red },
+  { label: 'Credits / Pricing', count: 104, color: colors.orange },
+  { label: 'Stability / Crashes', count: 78, color: colors.yellow },
+  { label: 'UI / UX Issues', count: 64, color: colors.pink },
+  { label: 'Context Window Limits', count: 49, color: colors.purple },
+  { label: 'Autocomplete / Tab', count: 45, color: colors.blue },
+  { label: 'Speed / Performance', count: 38, color: colors.cyan },
+  { label: 'Terminal Issues', count: 35, color: colors.teal },
+  { label: 'JetBrains / Plugin', count: 14, color: colors.indigo },
+  { label: 'Breaks Existing Code', count: 13, color: '#94a3b8' },
+];
+
+const maxCount = themes[0].count;
+const themeList = document.getElementById('themeList');
+themes.forEach(t => {
+  const pct = ((t.count / maxCount) * 100).toFixed(0);
+  const li = document.createElement('li');
+  li.className = 'theme-item';
+  li.innerHTML = `
+    <span class="theme-label">${t.label}</span>
+    <div class="theme-bar-wrap">
+      <div class="theme-bar" style="width:${pct}%; background:${t.color};">${t.count}</div>
+    </div>
+    <span class="theme-count">${((t.count / 527) * 100).toFixed(0)}%</span>
+  `;
+  themeList.appendChild(li);
+});
+
+// ===== Frustration Bar Chart =====
+new Chart(document.getElementById('frustrationsBarChart'), {
+  type: 'bar',
+  data: {
+    labels: themes.map(t => t.label),
+    datasets: [{
+      data: themes.map(t => t.count),
+      backgroundColor: themes.map(t => t.color),
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        title: { display: true, text: 'Mentions', font: { size: 11 } }
+      },
+      x: {
+        grid: { display: false },
+        ticks: {
+          maxRotation: 45,
+          minRotation: 30,
+          font: { size: 11 }
+        }
+      }
+    }
+  }
+});
+
+// ===== Free Response Themes Chart =====
+new Chart(document.getElementById('freeResponseThemesChart'), {
+  type: 'bar',
+  data: {
+    labels: [
+      'Positive Sentiment',
+      'Model / AI Quality',
+      'Feature Requests',
+      'Enterprise / Team',
+      'Pricing / Credits',
+      'Devin Interest',
+      'Cursor Comparison',
+      'Claude Code Comp.',
+      'Context / Memory',
+      'CLI / Terminal',
+      'Vibe / Solo Dev',
+      'Stability',
+    ],
+    datasets: [{
+      data: [99, 87, 76, 67, 52, 39, 20, 17, 16, 14, 11, 11],
+      backgroundColor: [
+        colors.green, colors.red, colors.blue, colors.teal,
+        colors.orange, colors.indigo, colors.pink, colors.purple,
+        colors.cyan, '#94a3b8', colors.yellow, '#f87171'
+      ],
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const pct = ((ctx.raw / 241) * 100).toFixed(1);
+            return ` ${ctx.raw} mentions (${pct}% of responses)`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: { font: { size: 11 } }
+      },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 11, weight: 500 } }
+      }
+    }
+  }
+});
+
+// ===== Product Requests List =====
+const productRequests = [
+  { label: 'Better pricing / credit transparency', count: 28, color: colors.orange },
+  { label: 'Context / Memory improvements', count: 16, color: colors.purple },
+  { label: 'CLI tool', count: 11, color: colors.cyan },
+  { label: 'Merge Devin + Windsurf', count: 8, color: colors.indigo },
+  { label: 'Mobile / Cross-platform', count: 7, color: colors.pink },
+  { label: 'Deployment / Cloud integration', count: 5, color: colors.green },
+  { label: 'JetBrains improvements', count: 4, color: colors.blue },
+  { label: 'Multi-agent / Orchestration', count: 2, color: colors.teal },
+  { label: 'BYOK / Custom models', count: 1, color: colors.yellow },
+];
+
+const prMaxCount = productRequests[0].count;
+const prList = document.getElementById('productRequestsList');
+productRequests.forEach(t => {
+  const pct = ((t.count / prMaxCount) * 100).toFixed(0);
+  const li = document.createElement('li');
+  li.className = 'theme-item';
+  li.innerHTML = `
+    <span class="theme-label">${t.label}</span>
+    <div class="theme-bar-wrap">
+      <div class="theme-bar" style="width:${pct}%; background:${t.color};">${t.count}</div>
+    </div>
+    <span class="theme-count">${((t.count / 241) * 100).toFixed(0)}%</span>
+  `;
+  prList.appendChild(li);
+});
+
+// ===== Devin Perception Chart =====
+new Chart(document.getElementById('devinPerceptionChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Coding Agent', 'Software Engineer', 'Autonomous / E2E', 'Remote / Cloud', 'Team / Enterprise', 'Negative View'],
+    datasets: [{
+      data: [93, 59, 45, 22, 10, 9],
+      backgroundColor: [colors.indigo, colors.blue, colors.green, colors.cyan, colors.teal, colors.red],
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const pct = ((ctx.raw / 217) * 100).toFixed(1);
+            return ` ${ctx.raw} responses (${pct}%)`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+      },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 12, weight: 500 } }
+      }
+    }
+  }
+});
+
+// ===== Devin Requests List =====
+const devinRequests = [
+  { label: 'Include Devin in Windsurf plan', count: 12, color: colors.indigo },
+  { label: 'Merge Devin + Windsurf products', count: 8, color: colors.purple },
+  { label: 'Better Devin value prop clarity', count: 7, color: colors.blue },
+  { label: 'Devin for JetBrains', count: 4, color: colors.cyan },
+  { label: 'Devin for non-coding tasks (PM, QA)', count: 3, color: colors.teal },
+  { label: 'Remote handoff Windsurf → Devin', count: 3, color: colors.green },
+  { label: 'Devin pricing too vague', count: 2, color: colors.orange },
+];
+
+const drMaxCount = devinRequests[0].count;
+const drList = document.getElementById('devinRequestsList');
+devinRequests.forEach(t => {
+  const pct = ((t.count / drMaxCount) * 100).toFixed(0);
+  const li = document.createElement('li');
+  li.className = 'theme-item';
+  li.innerHTML = `
+    <span class="theme-label">${t.label}</span>
+    <div class="theme-bar-wrap">
+      <div class="theme-bar" style="width:${pct}%; background:${t.color};">${t.count}</div>
+    </div>
+  `;
+  drList.appendChild(li);
+});
+</script>
+
+</body>
+</html>
